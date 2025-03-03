@@ -1,7 +1,7 @@
 [package]
 name = "seq-here"
 authors = ["Zhixia <zhixiaovo@gmail.com>"]
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
 license = "MIT"
 keywords = ["bioinformatics", "sequence"]
@@ -17,3 +17,15 @@ rust-version = "1.80.0"
 [dependencies]
 bio = "2.0.3"
 clap = { version = "4.5.28", features = ["derive"] }
+colored = "3.0.0"
+
+[[bin]]
+name = "seq-here"
+path = "src/main.rs"
+
+[lib]
+name = "seq_here"
+path = "src/lib.rs"
+
+[package.metadata.docs.rs]
+all-features = true
