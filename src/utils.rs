@@ -46,7 +46,6 @@ pub fn try_file_type_ext(file: &Path) -> Result<String, Box<dyn std::error::Erro
     }
 }
 
-
 // Check the sequence type by a fast way: see if some special symbols exist in the sequence
 pub fn try_seq_type_seq(seq: &[u8]) -> String {
     if seq.is_empty() {
@@ -80,10 +79,31 @@ pub fn try_seq_type_seq(seq: &[u8]) -> String {
         if is_protein {
             if matches!(
                 c_upper,
-                b'A' | b'R' | b'N' | b'D' | b'C' | b'E' | b'Q' | b'G' |
-                b'H' | b'I' | b'L' | b'K' | b'M' | b'F' | b'P' | b'S' |
-                b'T' | b'W' | b'Y' | b'V' | b'B' | b'J' | b'O' | b'U' |
-                b'X' | b'Z'
+                b'A' | b'R'
+                    | b'N'
+                    | b'D'
+                    | b'C'
+                    | b'E'
+                    | b'Q'
+                    | b'G'
+                    | b'H'
+                    | b'I'
+                    | b'L'
+                    | b'K'
+                    | b'M'
+                    | b'F'
+                    | b'P'
+                    | b'S'
+                    | b'T'
+                    | b'W'
+                    | b'Y'
+                    | b'V'
+                    | b'B'
+                    | b'J'
+                    | b'O'
+                    | b'U'
+                    | b'X'
+                    | b'Z'
             ) {
                 valid_in_any = true;
             } else {

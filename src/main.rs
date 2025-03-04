@@ -50,9 +50,7 @@ struct InfoFaArgs {
     #[command(flatten)]
     input: InputFile,
     #[arg(value_enum)]
-
-    #[arg(long, short = 'o',
-        default_value = "println")] // default = "println"
+    #[arg(long, short = 'o', default_value = "println")] // default = "println"
     output_type: OutputType,
 }
 
@@ -61,8 +59,7 @@ struct InfoFqArgs {
     #[command(flatten)]
     input: InputFile,
 
-    #[arg(long, short = 'o',
-        default_value = "println")] // default = "println"
+    #[arg(long, short = 'o', default_value = "println")] // default = "println"
     output_type: OutputType,
 }
 
@@ -71,12 +68,10 @@ struct InfoGffArgs {
     #[command(flatten)]
     input: InputFile,
 
-    #[arg(long, short = 't',
-        default_value = "gff3")] // default = "gff3"
+    #[arg(long, short = 't', default_value = "gff3")] // default = "gff3"
     _type: Option<String>,
 
-    #[arg(long, short = 'o',
-        default_value = "println")] // default = "println"
+    #[arg(long, short = 'o', default_value = "println")] // default = "println"
     output_type: OutputType,
 }
 
@@ -88,14 +83,10 @@ enum OutputType {
 }
 
 #[derive(Subcommand)]
-enum ConvertCmd {
-
-}
+enum ConvertCmd {}
 
 #[derive(Subcommand)]
-enum ExtractCmd {
-
-}
+enum ExtractCmd {}
 
 #[derive(Args)]
 struct InputFile {
@@ -109,11 +100,14 @@ struct InputFile {
 
 impl InputFile {
     fn get_files(&self) -> Vec<PathBuf> {
-
         let mut files = Vec::new();
         for f in &self.files {
             if !f.exists() {
-                eprintln!("{}: File not found: {}", "Error".red().bold(), f.to_str().unwrap());
+                eprintln!(
+                    "{}: File not found: {}",
+                    "Error".red().bold(),
+                    f.to_str().unwrap()
+                );
                 std::process::exit(1);
             }
 
@@ -142,73 +136,56 @@ fn main() {
     let args = Cli::parse();
 
     match args.command {
-        Commands::Info(info_cmd) => {
-            match info_cmd {
-                InfoCmd::Fa(args) => {
-                    println!(
-                        "{}: {:?}",
-                        "Inputs:".green().bold(),
-                        args.input.get_files()
-                    );
-                    match args.output_type {
-                        OutputType::File => {
-                            info::InfoFa::by_file(args.input.get_files());
-                        }
-                        OutputType::Println => {
-                            info::InfoFa::by_println(args.input.get_files());
-                        }
-                        OutputType::Csv => {
-                            info::InfoFa::by_csv(args.input.get_files());
-                        }
+        Commands::Info(info_cmd) => match info_cmd {
+            InfoCmd::Fa(args) => {
+                println!("{}: {:?}", "Inputs:".green().bold(), args.input.get_files());
+                match args.output_type {
+                    OutputType::File => {
+                        info::InfoFa::by_file(args.input.get_files());
                     }
-                }
-
-                InfoCmd::Fq(args) => {
-                    println!(
-                        "{}: {:?}",
-                        "Inputs:".green().bold(),
-                        args.input.get_files()
-                    );
-                    match args.output_type {
-                        OutputType::File => {
-                            info::InfoFq::by_file(args.input.get_files());
-                        }
-                        OutputType::Println => {
-                            info::InfoFq::by_println(args.input.get_files());
-                        }
-                        OutputType::Csv => {
-                            info::InfoFq::by_csv(args.input.get_files());
-                        }
+                    OutputType::Println => {
+                        info::InfoFa::by_println(args.input.get_files());
                     }
-                }
-
-                InfoCmd::Gff(args) => {
-                    println!(
-                        "{}: {:?}",
-                        "Inputs:".green().bold(),
-                        args.input.get_files()
-                    );
-                    match args.output_type {
-                        OutputType::File => {
-                            info::InfoGff::by_file(args.input.get_files());
-                        }
-                        OutputType::Println => {
-                            info::InfoGff::by_println(args.input.get_files());
-                        }
-                        OutputType::Csv => {
-                            info::InfoGff::by_csv(args.input.get_files());
-                        }
+                    OutputType::Csv => {
+                        info::InfoFa::by_csv(args.input.get_files());
                     }
-
                 }
             }
 
-        }
+            InfoCmd::Fq(args) => {
+                println!("{}: {:?}", "Inputs:".green().bold(), args.input.get_files());
+                match args.output_type {
+                    OutputType::File => {
+                        info::InfoFq::by_file(args.input.get_files());
+                    }
+                    OutputType::Println => {
+                        info::InfoFq::by_println(args.input.get_files());
+                    }
+                    OutputType::Csv => {
+                        info::InfoFq::by_csv(args.input.get_files());
+                    }
+                }
+            }
+
+            InfoCmd::Gff(args) => {
+                println!("{}: {:?}", "Inputs:".green().bold(), args.input.get_files());
+                match args.output_type {
+                    OutputType::File => {
+                        info::InfoGff::by_file(args.input.get_files());
+                    }
+                    OutputType::Println => {
+                        info::InfoGff::by_println(args.input.get_files());
+                    }
+                    OutputType::Csv => {
+                        info::InfoGff::by_csv(args.input.get_files());
+                    }
+                }
+            }
+        },
 
         Commands::Convert(_) => {
             println!("Convert command");
             println!("{}", "Not implemented yet".yellow().bold());
-
         }
 
         Commands::Extract(_) => {
