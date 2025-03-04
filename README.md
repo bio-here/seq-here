@@ -1,6 +1,6 @@
 # seq-here
 
-[![Version](https://img.shields.io/badge/version-0.0.1-yellow.svg)]()
+[![Version](https://img.shields.io/badge/version-0.0.2-yellow.svg)]()
 [![GitHub](https://img.shields.io/badge/github-bio--here%2Fseq--here-blue.svg)](https://github.com/bio-here/seq-here)
 [![Build Status](https://travis-ci.org/bio-here/seq-here.svg?branch=master)](https://travis-ci.org/bio-here/seq-here)
 [![Crates.io](https://img.shields.io/crates/v/seq-here.svg)](https://crates.io/crates/seq-here)
@@ -9,7 +9,7 @@
 
 A fast tool for bio-sequence file processing.
 
-**NOTICE** : This project is still under development. The current version is 0.0.1.
+**NOTICE** : This project is still under development. The current version is 0.0.2.
 The usage of this tool is **not** recommended for production yet.
 
 
@@ -18,14 +18,12 @@ The usage of this tool is **not** recommended for production yet.
 You can install `seq-here` using `cargo`:
 
 ```shell
-
 cargo install seq-here
 ```
 
 or you can build it from source:
 
 ```shell
-
 git clone [TODO]
 cd seq-here
 cargo build --release
@@ -57,13 +55,19 @@ seq-here --help
 
 ```shell
 # Fasta file information
-seq-here info fa you_files.fasta
+seq-here info fa you_files.fasta,your_files2.fasta
 
 # Fastq file information
 seq-here info fq your_files.fastq
 
 # Gff/Gtf file information, Gff2 not supported yet
 seq-here info gff your_files.gff
+
+# -o, --output: output method, default is println
+# 3 options: println, file, csv
+
+# input a directory to get all files information below the directory
+seq-here info fa your_dir
 ```
 
 - **Convert**: Convert or process incoming sequence file(s).

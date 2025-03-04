@@ -48,9 +48,9 @@ pub fn try_file_type_ext(file: &Path) -> Result<String, Box<dyn std::error::Erro
 
 
 // Check the sequence type by a fast way: see if some special symbols exist in the sequence
-pub fn try_seq_type_seq(seq: &[u8]) -> Result<String, Box<dyn std::error::Error>> {
+pub fn try_seq_type_seq(seq: &[u8]) -> String {
     if seq.is_empty() {
-        return Err("Empty sequence".into());
+        eprintln!("Empty sequence");
     }
 
     let (mut is_dna, mut is_rna, mut is_protein) = (true, true, true);
@@ -93,18 +93,26 @@ pub fn try_seq_type_seq(seq: &[u8]) -> Result<String, Box<dyn std::error::Error>
 
         // Early exit if invalid character
         if !valid_in_any {
-            return Err(format!("Invalid character: {}", c as char).into());
+            eprintln!("Invalid character: {}", c as char);
+        }
+        // Early exit if only one type is valid
+        if only_one_true(is_dna, is_rna, is_protein) {
+            break;
         }
     }
 
     // Determine result by priority
     if is_dna {
-        Ok("DNA".into())
+        "DNA".into()
     } else if is_rna {
-        Ok("RNA".into())
+        "RNA".into()
     } else if is_protein {
-        Ok("Protein".into())
+        "Protein".into()
     } else {
-        Err("Unknown sequence type".into())
+        "Unknown sequence type".into()
     }
+}
+
+fn only_one_true(a: bool, b: bool, c: bool) -> bool {
+    (a as u8 + b as u8 + c as u8) == 1
 }

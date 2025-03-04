@@ -1,7 +1,6 @@
-use bio::io::gff::GffType;
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 use colored::Colorize;
-use seq_here::info::{self, info_gff, InfoOutput};
+use seq_here::info::{self, InfoOutput};
 use std::path::{Path, PathBuf};
 
 #[derive(Parser)]
@@ -50,12 +49,21 @@ enum InfoCmd {
 struct InfoFaArgs {
     #[command(flatten)]
     input: InputFile,
+    #[arg(value_enum)]
+
+    #[arg(long, short = 'o',
+        default_value = "println")] // default = "println"
+    output_type: OutputType,
 }
 
 #[derive(Args)]
 struct InfoFqArgs {
     #[command(flatten)]
     input: InputFile,
+
+    #[arg(long, short = 'o',
+        default_value = "println")] // default = "println"
+    output_type: OutputType,
 }
 
 #[derive(Args)]
@@ -66,6 +74,17 @@ struct InfoGffArgs {
     #[arg(long, short = 't',
         default_value = "gff3")] // default = "gff3"
     _type: Option<String>,
+
+    #[arg(long, short = 'o',
+        default_value = "println")] // default = "println"
+    output_type: OutputType,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum OutputType {
+    File,
+    Println,
+    Csv,
 }
 
 #[derive(Subcommand)]
@@ -131,8 +150,17 @@ fn main() {
                         "Inputs:".green().bold(),
                         args.input.get_files()
                     );
-                    info::InfoFa::by_file(args.input.get_files());
-                    info::InfoFa::by_println(args.input.get_files());
+                    match args.output_type {
+                        OutputType::File => {
+                            info::InfoFa::by_file(args.input.get_files());
+                        }
+                        OutputType::Println => {
+                            info::InfoFa::by_println(args.input.get_files());
+                        }
+                        OutputType::Csv => {
+                            info::InfoFa::by_csv(args.input.get_files());
+                        }
+                    }
                 }
 
                 InfoCmd::Fq(args) => {
@@ -141,8 +169,17 @@ fn main() {
                         "Inputs:".green().bold(),
                         args.input.get_files()
                     );
-                    info::InfoFq::by_file(args.input.get_files());
-                    info::InfoFq::by_println(args.input.get_files());
+                    match args.output_type {
+                        OutputType::File => {
+                            info::InfoFq::by_file(args.input.get_files());
+                        }
+                        OutputType::Println => {
+                            info::InfoFq::by_println(args.input.get_files());
+                        }
+                        OutputType::Csv => {
+                            info::InfoFq::by_csv(args.input.get_files());
+                        }
+                    }
                 }
 
                 InfoCmd::Gff(args) => {
@@ -151,9 +188,18 @@ fn main() {
                         "Inputs:".green().bold(),
                         args.input.get_files()
                     );
-                    info_gff(args.input.get_files(), GffType::GFF3);
-                    info::InfoGff::by_file(args.input.get_files());
-                    info::InfoGff::by_println(args.input.get_files());
+                    match args.output_type {
+                        OutputType::File => {
+                            info::InfoGff::by_file(args.input.get_files());
+                        }
+                        OutputType::Println => {
+                            info::InfoGff::by_println(args.input.get_files());
+                        }
+                        OutputType::Csv => {
+                            info::InfoGff::by_csv(args.input.get_files());
+                        }
+                    }
+
                 }
             }
 
