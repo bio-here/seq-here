@@ -1,13 +1,13 @@
-use std::collections::{HashMap, HashSet};
 use crate::utils;
+use bio::bio_types::strand::Strand;
 use bio::io::fasta;
 use bio::io::gff::GffType;
 use colored::Colorize;
 use comfy_table::presets::NOTHING;
 use comfy_table::{ContentArrangement, Table};
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use bio::bio_types::strand::Strand;
 
 /// Define the trait for the different file types
 ///
@@ -112,7 +112,12 @@ fn info_fa(paths: Vec<PathBuf>) -> String {
         }
         str_buf.insert(
             i,
-            format!("File'{}' Total length/count : {}/{} \n", path.display(), total_len, count),
+            format!(
+                "File'{}' Total length/count : {}/{} \n",
+                path.display(),
+                total_len,
+                count
+            ),
         );
     }
     str_buf.push("\n".to_string());
@@ -148,7 +153,12 @@ fn info_fq(paths: Vec<PathBuf>) -> String {
         }
         str_buf.insert(
             i,
-            format!("File'{}' Total length/count : {}/{} \n", path.display(), total_len, count),
+            format!(
+                "File'{}' Total length/count : {}/{} \n",
+                path.display(),
+                total_len,
+                count
+            ),
         );
     }
 
@@ -160,16 +170,17 @@ fn info_gff(paths: Vec<PathBuf>, gff_type: GffType) -> String {
     let mut str_buf: Vec<String> = Vec::new();
 
     for (i, path) in paths.iter().enumerate() {
-
         let mut reader = bio::io::gff::Reader::from_file(&path, gff_type)
             .expect(format!("{} reading file {}.", "Error".red().bold(), &path.display()).as_str());
         str_buf.push(format!("File: {:?} \n", path));
 
         let mut count = 0;
-        let (mut seq_id, mut source, mut feature_type,
-            mut score, mut strand ) = (
-            HashMap::new(), HashMap::new(), HashMap::new(),
-            HashMap::new(), HashMap::new(),
+        let (mut seq_id, mut source, mut feature_type, mut score, mut strand) = (
+            HashMap::new(),
+            HashMap::new(),
+            HashMap::new(),
+            HashMap::new(),
+            HashMap::new(),
         );
 
         for record in reader.records() {
@@ -177,13 +188,17 @@ fn info_gff(paths: Vec<PathBuf>, gff_type: GffType) -> String {
 
             *seq_id.entry(record.seqname().to_owned()).or_insert(0) += 1;
             *source.entry(record.source().to_owned()).or_insert(0) += 1;
-            *feature_type.entry(record.feature_type().to_owned()).or_insert(0) += 1;
+            *feature_type
+                .entry(record.feature_type().to_owned())
+                .or_insert(0) += 1;
             *score.entry(record.score().to_owned()).or_insert(0) += 1;
-            *strand.entry(match record.strand().unwrap_or(Strand::Unknown) {
-                Strand::Forward => {"+"}
-                Strand::Reverse => {"-"}
-                Strand::Unknown => {"."}
-            }).or_insert(0) += 1;
+            *strand
+                .entry(match record.strand().unwrap_or(Strand::Unknown) {
+                    Strand::Forward => "+",
+                    Strand::Reverse => "-",
+                    Strand::Unknown => ".",
+                })
+                .or_insert(0) += 1;
 
             count += 1;
         }
@@ -202,7 +217,6 @@ fn info_gff(paths: Vec<PathBuf>, gff_type: GffType) -> String {
     str_buf.push("\n".to_string());
     str_buf.into_iter().collect::<String>()
 }
-
 
 fn format_table(input: String) -> String {
     let rows: Vec<Vec<&str>> = input
