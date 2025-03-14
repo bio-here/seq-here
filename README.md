@@ -1,6 +1,6 @@
 # seq-here
 
-[![Version](https://img.shields.io/badge/version-0.0.2-yellow.svg)]()
+[![Version](https://img.shields.io/badge/version-0.0.3-yellow.svg)]()
 [![GitHub](https://img.shields.io/badge/github-bio--here%2Fseq--here-blue.svg)](https://github.com/bio-here/seq-here)
 [![Build Status](https://travis-ci.org/bio-here/seq-here.svg?branch=master)](https://travis-ci.org/bio-here/seq-here)
 [![Crates.io](https://img.shields.io/crates/v/seq-here.svg)](https://crates.io/crates/seq-here)
@@ -75,7 +75,9 @@ seq-here info fa your_dir
 - **Process**: Convert or process incoming sequence file(s).
 
 ```shell
-[TODO]
+# Combine files
+seq-here process combine files_folder
+
 ```
 
 - **Extract**: Extract specified sequence segment or file data.
