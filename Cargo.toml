@@ -1,8 +1,9 @@
 [package]
 name = "seq-here"
 authors = ["Zhixia <zhixiaovo@gmail.com>"]
-version = "0.0.2"
-edition = "2021"
+version = "0.0.3"
+edition = "2024"
+rust-version = "1.85.0"
 license = "MIT"
 keywords = ["bioinformatics", "sequence"]
 categories = ["command-line-utilities", "science"]
@@ -11,12 +12,11 @@ description = "A fast tool for bio-sequence file processing."
 homepage = "https://bio-here.github.io/seq-here/"
 documentation = "https://docs.rs/seq-here"
 repository = "https://github.com/bio-here/seq-here"
-rust-version = "1.80.0"
 
 
 [dependencies]
-bio = "2.0.3"
-clap = { version = "4.5.28", features = ["derive"] }
+bio = "2.2.0"
+clap = { version = "4.5.32", features = ["derive"] }
 colored = "3.0.0"
 comfy-table = "7.1.4"
 

@@ -12,7 +12,7 @@
 //!
 //! Use the crate in your project by adding the following to your `Cargo.toml`:
 //! ```toml
-//! seq-here = "0.0.2"
+//! seq-here = "0.0.3"
 //! ```
 //!
 //! There are 3 modules in this crate for different purposes:
@@ -21,6 +21,7 @@
 //! - **extract**: Extract specified sequence segment or file data.
 //!
 //! ## Examples
+//!
 //! - Info module:
 //!
 //! ```rust
@@ -31,7 +32,7 @@
 //! info::InfoFa::by_file(paths);
 //! ```
 //!
-//! - Convert module:
+//! - Process module:
 //!
 //! ```rust
 //!
