@@ -30,9 +30,10 @@
 //
 // }
 
+use std::fs;
 use std::path::Path;
 
-// Get the sequence type from the file extension
+/// Get the sequence type from the file extension
 pub fn try_file_type_ext(file: &Path) -> Result<String, Box<dyn std::error::Error>> {
     let ext = file.extension().unwrap().to_str().unwrap();
     match ext {
@@ -46,7 +47,7 @@ pub fn try_file_type_ext(file: &Path) -> Result<String, Box<dyn std::error::Erro
     }
 }
 
-// Check the sequence type by a fast way: see if some special symbols exist in the sequence
+/// Check the sequence type by a fast way: see if some special symbols exist in the sequence
 pub fn try_seq_type_seq(seq: &[u8]) -> String {
     if seq.is_empty() {
         eprintln!("Empty sequence");
@@ -59,7 +60,8 @@ pub fn try_seq_type_seq(seq: &[u8]) -> String {
 
         // Check DNA validity
         if is_dna {
-            if matches!(c_upper, b'A' | b'T' | b'C' | b'G') {
+            // Some files may contain 'N' as a placeholder for unknown bases
+            if matches!(c_upper, b'A' | b'T' | b'C' | b'G' | b'N') {
                 valid_in_any = true;
             } else {
                 is_dna = false;
@@ -122,6 +124,7 @@ pub fn try_seq_type_seq(seq: &[u8]) -> String {
     }
 
     // Determine result by priority
+    // if `is_dna && is_protein` equals to true, the sequence is seen as DNA.
     if is_dna {
         "DNA".into()
     } else if is_rna {
@@ -135,4 +138,10 @@ pub fn try_seq_type_seq(seq: &[u8]) -> String {
 
 fn only_one_true(a: bool, b: bool, c: bool) -> bool {
     (a as u8 + b as u8 + c as u8) == 1
+}
+
+/// Write `content` into file given by `path`
+///
+pub fn write_file<P: AsRef<Path>>(path: P, content: &str) {
+    fs::write(path, content).expect("Unable to write file");
 }

@@ -9,7 +9,7 @@
 
 A fast tool for bio-sequence file processing.
 
-**NOTICE** : This project is still under development. The current version is 0.0.2.
+**NOTICE** : This project is still under development. The current version is 0.0.3.
 The usage of this tool is **not** recommended for production yet.
 
 
@@ -24,7 +24,7 @@ cargo install seq-here
 or you can build it from source:
 
 ```shell
-git clone [TODO]
+git clone git@github.com:bio-here/seq-here.git
 cd seq-here
 cargo build --release
 cp target/release/seq-here /usr/local/bin
@@ -39,7 +39,7 @@ by adding the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-seq-here = "0.0.1"
+seq-here = "0.0.3"
 ```
 
 
@@ -65,12 +65,14 @@ seq-here info gff your_files.gff
 
 # -o, --output: output method, default is println
 # 3 options: println, file, csv
+# The file will be put in the current directory
+seq-here info fa your_files.fasta -o file
 
 # input a directory to get all files information below the directory
 seq-here info fa your_dir
 ```
 
-- **Convert**: Convert or process incoming sequence file(s).
+- **Process**: Convert or process incoming sequence file(s).
 
 ```shell
 [TODO]
@@ -79,7 +81,10 @@ seq-here info fa your_dir
 - **Extract**: Extract specified sequence segment or file data.
 
 ```shell
-[TODO]
+
+seq-here extract segment
+
+seq-here extract 
 ```
 
 
