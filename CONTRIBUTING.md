@@ -7,7 +7,7 @@ Feel free to contribute to the repos. Here are some guidelines to follow:
 3. Create a new branch.
 4. Make your changes.
 5. Push the changes to your forked repo.
-6. Create a pull request.
+6. Create a pull request to the `branch dev`.
 7. Wait for the review.
 
 If the changes are approved, they will be **merged**.

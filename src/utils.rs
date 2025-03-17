@@ -1,39 +1,59 @@
-// use std::path::{Path, PathBuf};
-// use super::error::Result;
-//
-// pub fn validate_files(paths: Vec<PathBuf>) -> Result<Vec<PathBuf>> {
-//     if paths.is_empty() {
-//         return Err("No input files provided.".into());
-//     }
-//
-//     let mut files = Vec::new();
-//     for f in paths {
-//
-//         let file = Path::new(f.as_);
-//         if file.is_dir() {
-//
-//             for e in file.read_dir()? {
-//                 let e = e?;
-//                 let path = e.path();
-//                 if path.is_file() {
-//                     files.push(path);
-//                 }
-//             }
-//             return Err(format!("Directory provided: {:?}", f).into());
-//         }
-//         if file.is_file() {
-//             files.push(f);
-//         }
-//     }
-//
-//     Ok(files)
-//
-// }
+/// Utils
+///
+/// The module has some useful functions.
+///
 
-use std::fs;
-use std::path::Path;
+use std::{fs, io};
+use std::fs::File;
+use std::path::{Path, PathBuf};
+use crate::error::e_exit;
+use bio::io::{fasta, fastq, gff};
+use bio::io::gff::GffType;
+
+/// Inside defined file types
+pub enum FileType {
+    Fasta,
+    Fastq,
+    Gff,
+    Unknown,
+}
+
+impl FileType {
+    /// Infer file type by extension name.
+    pub fn infer_file_type(path: &PathBuf) -> FileType {
+        path.extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| match ext.to_lowercase().as_str() {
+                "fa" | "fasta" | "pep" => FileType::Fasta,      // NOTE: PEP needs investigation
+                "gff" | "gff3" => FileType::Gff,
+                "fq" | "fastq" => FileType::Fastq,
+                _ => FileType::Unknown
+            })
+            .unwrap_or(FileType::Unknown)
+    }
+}
+
+
+/// Multiple format file writer based on [bio crate] .
+pub struct MultiFormatWriter {
+    pub fa: fasta::Writer<File>,
+    pub fq: fastq::Writer<File>,
+    pub gff: gff::Writer<File>,
+}
+
+impl MultiFormatWriter {
+    pub fn new(path: &PathBuf) -> io::Result<Self> {
+        let file = File::create(path)?;
+        Ok(Self {
+            fa: fasta::Writer::new(file.try_clone()?),
+            gff: gff::Writer::new(file.try_clone()?, GffType::GFF3),   // TODO: GFF Type
+            fq: fastq::Writer::new(file),
+        })
+    }
+}
 
 /// Get the sequence type from the file extension
+///
 pub fn try_file_type_ext(file: &Path) -> Result<String, Box<dyn std::error::Error>> {
     let ext = file.extension().unwrap().to_str().unwrap();
     match ext {
@@ -48,6 +68,7 @@ pub fn try_file_type_ext(file: &Path) -> Result<String, Box<dyn std::error::Erro
 }
 
 /// Check the sequence type by a fast way: see if some special symbols exist in the sequence
+///
 pub fn try_seq_type_seq(seq: &[u8]) -> String {
     if seq.is_empty() {
         eprintln!("Empty sequence");
@@ -144,4 +165,25 @@ fn only_one_true(a: bool, b: bool, c: bool) -> bool {
 ///
 pub fn write_file<P: AsRef<Path>>(path: P, content: &str) {
     fs::write(path, content).expect("Unable to write file");
+}
+
+/// See what type(file or dir) does the path behalf.
+pub fn is_directory_path(path: &PathBuf) -> bool {
+    path.extension().map_or(true, |ext| {
+        ext.is_empty() || path.as_os_str().to_str().unwrap().ends_with('.')
+    })
+}
+
+/// Creat empty file.
+///
+pub fn create_file_with_dir(path: &Path) {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).unwrap_or_else(|e| {
+            e_exit("DIR", &format!("Unable to create directory: {}", e), 1);
+        });
+    }
+
+    File::create(path).unwrap_or_else(|e| {
+        e_exit("FILE", &format!("Unable to create file: {}", e), 1);
+    });
 }

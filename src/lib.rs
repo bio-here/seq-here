@@ -12,12 +12,12 @@
 //!
 //! Use the crate in your project by adding the following to your `Cargo.toml`:
 //! ```toml
-//! seq-here = "0.0.3"
+//! seq-here = "0.0.4"
 //! ```
 //!
 //! There are 3 modules in this crate for different purposes:
 //! - **info**: Get basic information about the input sequence file(s).
-//! - **convert**: Convert or process incoming sequence file(s).
+//! - **process**: Process incoming sequence file(s).
 //! - **extract**: Extract specified sequence segment or file data.
 //!
 //! ## Examples
@@ -27,6 +27,7 @@
 //! ```rust
 //! use seq_here::info::{self, InfoOutput};
 //! use std::path::{Path, PathBuf};
+//!
 //! let paths = vec![PathBuf::from("tests/test.fa")];
 //! info::InfoFa::by_println(paths.clone());
 //! info::InfoFa::by_file(paths);
@@ -35,6 +36,7 @@
 //! - Process module:
 //!
 //! ```rust
+//! use seq_here::process::{self};
 //!
 //! ```
 //!
@@ -45,9 +47,9 @@
 //! ```
 //!
 
-pub mod convert;
+pub mod process;
 pub mod extract;
 pub mod info;
 
-mod error;
+pub mod error;
 pub mod utils;
