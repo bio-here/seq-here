@@ -1,15 +1,18 @@
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use colored::Colorize;
-use seq_here::info::{self, InfoOutput};
-use seq_here::convert::{self};
+use seq_here::error::e_exit;
 use seq_here::extract::{self};
+use seq_here::info::{self, InfoOutput};
+use seq_here::process::{self};
+use seq_here::utils;
+use std::fs;
 use std::path::{Path, PathBuf};
 
 #[derive(Parser)]
 #[command(name = "seq-here", next_line_help = true)]
 #[command(author = "Zhixia Lau <zhixiaovo@gmail.com>")]
 #[command(
-    version = "0.0.3",
+    version = "0.0.4",
     about = "A fast tool for bio-sequence file processing",
     long_about
 )]
@@ -100,6 +103,9 @@ enum ProcessCmd {
 struct ProcessCombineArgs {
     #[command(flatten)]
     input: InputFile,
+
+    #[command(flatten)]
+    output: OutputFile,
 }
 
 /// Extract Subcommand
@@ -120,6 +126,9 @@ struct ExtractSegmentArgs {
 
     #[command(flatten)]
     id_options: InputOptions,   // Input ids by keyboard or file
+
+    #[command(flatten)]
+    output: OutputFile,         // Output file
 }
 
 #[derive(Args)]
@@ -129,9 +138,12 @@ struct ExtractExplainArgs {
 
     #[command(flatten)]
     input2: InputFile,          // GFF files
+
+    #[command(flatten)]
+    output: OutputFile,         // Output file
 }
 
-/// Input Options
+/// I/O Options
 ///
 #[derive(Args)]
 #[group(required = true, multiple = false)]
@@ -165,12 +177,7 @@ impl InputFile {
         let mut files = Vec::new();
         for f in &self.files {
             if !f.exists() {
-                eprintln!(
-                    "{}: File not found: {}",
-                    "Error".red().bold(),
-                    f.to_str().unwrap()
-                );
-                std::process::exit(1);
+                e_exit("File", "File(s) does not exist.", 1);
             }
 
             let f = Path::new(f);
@@ -190,6 +197,50 @@ impl InputFile {
 
         files
     }
+}
+
+#[derive(Args)]
+struct OutputFile {
+    #[arg(short = 'o', long)]
+    #[arg(help = "Output file name, if value is a directory, \
+     it would use default file_name in the directory.")]
+    #[arg(value_name = "OutputFile")]
+    output: Option<PathBuf>,
+}
+
+impl OutputFile {
+    // Check if path does exist.
+    // Return a file path.
+    fn get_file(&self, default: &str) -> PathBuf {
+        match &self.output {
+            Some(path) => {
+                if let Ok(metadata) = fs::metadata(path) {
+                    if metadata.is_file() {
+                        path.clone()
+                    } else {
+                        let new_path = path.join(default);
+                        // utils::create_file_with_dir(&new_path);
+                        new_path
+                    }
+                } else {
+                    if utils::is_directory_path(path) {
+                        let dir_path = path.join(default);
+                        // utils::create_file_with_dir(&dir_path);
+                        dir_path
+                    } else {
+                        // utils::create_file_with_dir(path);
+                        path.clone()
+                    }
+                }
+            }
+            None => {
+                let default_path = PathBuf::from("./").join(default);
+                // utils::create_file_with_dir(&default_path);
+                default_path
+            }
+        }
+    }
+
 }
 
 
@@ -250,34 +301,39 @@ fn main() {
         Commands::Process(process_cmd) => match process_cmd{
             ProcessCmd::Combine(args) => {
                 let files = args.input.get_files();
+                let out = args.output.get_file("./combined");
                 println!("{}: {:?}", "Input files:".green().bold(), files);
-                convert::ConvertCombine::combine_all(files, PathBuf::from("./combined"));       //TODO: File Ext
+                println!("{}: {:?}", "Output file:".green().bold(), out);
+                process::ConvertCombine::combine_all(files, out);
             }
         },
 
         Commands::Extract(extract_cmd) => match extract_cmd {
             ExtractCmd::Segment(args) => {
                 let seq_files = args.input.get_files();
+                let out = args.output.get_file("./id_extracted_segment");
                 println!("{}: {:?}", "Input files:".green().bold(), seq_files);
 
                 match (args.id_options.file, args.id_options.str) {
                     (None, Some(id)) => {
                         println!("{}: {:?}", "Input ID:".yellow().bold(), id);
-                        extract::ExtractSegment::extract_id(seq_files, id);
+                        extract::ExtractSegment::extract_id(seq_files, id, out);
                     },
                     (Some(path), None) => {
                         println!("{}: {:?}", "Input path:".yellow().bold(), path);
-                        extract::ExtractSegment::extract_id_files(seq_files, path);
+                        extract::ExtractSegment::extract_id_files(seq_files, path, out);
                     },
                     _ => {}
                 };
-            }
+            },
+
             ExtractCmd::Explain(args) => {
                 let (seq_files, gff_files) = (args.input1.get_files(), args.input2.get_files());
+                let out = args.output.get_file("./anno_extracted_segment");
                 println!("{}: {:?}\n{}: {:?}",
                          "Input sequence files:".green().bold(), seq_files,
                          "Input annotation files".yellow().bold(), gff_files);
-                extract::ExtractExplain::extract(seq_files, gff_files);
+                extract::ExtractExplain::extract(seq_files, gff_files, out);
             }
         },
     }
