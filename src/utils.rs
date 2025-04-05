@@ -1,6 +1,6 @@
 /// Utils
 ///
-/// The module has some useful functions.
+/// The module has some useful functions for bioinformatics file handling and sequence analysis.
 ///
 
 use std::{fs, io};
@@ -10,23 +10,30 @@ use crate::error::e_exit;
 use bio::io::{fasta, fastq, gff};
 use bio::io::gff::GffType;
 
-/// Inside defined file types
+/// Enumeration of supported bioinformatics file types
+/// Used for file type detection and handling
 pub enum FileType {
-    Fasta,
-    Fastq,
-    Gff,
-    Unknown,
+    Fasta,  // FASTA sequence files (.fa, .fasta)
+    Fastq,  // FASTQ sequence files (.fq, .fastq)
+    Gff,    // GFF annotation files (.gff, .gff3)
+    Unknown, // Unrecognized file format
 }
 
 impl FileType {
-    /// Infer file type by extension name.
+    /// Infers the biological file type based on the file extension.
+    /// 
+    /// # Arguments
+    /// * `path` - PathBuf pointing to the file to analyze
+    ///
+    /// # Returns
+    /// * `FileType` enum representing the detected file type
     pub fn infer_file_type(path: &PathBuf) -> FileType {
         path.extension()
             .and_then(|ext| ext.to_str())
             .map(|ext| match ext.to_lowercase().as_str() {
-                "fa" | "fasta" | "pep" => FileType::Fasta,      // NOTE: PEP needs investigation
-                "gff" | "gff3" => FileType::Gff,
-                "fq" | "fastq" => FileType::Fastq,
+                "fa" | "fasta" | "pep" => FileType::Fasta,      // DNA/protein sequence files
+                "gff" | "gff3" => FileType::Gff,                // Gene feature format
+                "fq" | "fastq" => FileType::Fastq,              // Sequence with quality scores
                 _ => FileType::Unknown
             })
             .unwrap_or(FileType::Unknown)
@@ -34,54 +41,77 @@ impl FileType {
 }
 
 
-/// Multiple format file writer based on [bio crate] .
+/// Multiple format file writer based on [bio crate].
+/// Provides a unified interface for writing different bioinformatics file formats.
 pub struct MultiFormatWriter {
-    pub fa: fasta::Writer<File>,
-    pub fq: fastq::Writer<File>,
-    pub gff: gff::Writer<File>,
+    pub fa: fasta::Writer<File>,  // For writing FASTA format files
+    pub fq: fastq::Writer<File>,  // For writing FASTQ format files
+    pub gff: gff::Writer<File>,   // For writing GFF/GTF format files
 }
 
 impl MultiFormatWriter {
+    /// Creates a new MultiFormatWriter that can write to different biological file formats.
+    ///
+    /// # Arguments
+    /// * `path` - PathBuf indicating where to create the output file
+    ///
+    /// # Returns
+    /// * `io::Result<Self>` - The writer instance or an IO error
     pub fn new(path: &PathBuf) -> io::Result<Self> {
         let file = File::create(path)?;
         Ok(Self {
             fa: fasta::Writer::new(file.try_clone()?),
-            gff: gff::Writer::new(file.try_clone()?, GffType::GFF3),   // TODO: GFF Type
+            gff: gff::Writer::new(file.try_clone()?, GffType::GFF3),   // Default to GFF3 format
             fq: fastq::Writer::new(file),
         })
     }
 }
 
-/// Get the sequence type from the file extension
+/// Determines file type based on file extension
 ///
+/// # Arguments
+/// * `file` - Path to the file to analyze
+///
+/// # Returns
+/// * `Result<String, Box<dyn std::error::Error>>` - String representation of file type or an error
 pub fn try_file_type_ext(file: &Path) -> Result<String, Box<dyn std::error::Error>> {
     let ext = file.extension().unwrap().to_str().unwrap();
     match ext {
-        "fasta" | "fa" => Ok("fasta".to_string()),
-        "fastq" | "fq" => Ok("fastq".to_string()),
-        "gff" | "gtf" => Ok("gff".to_string()),
-        "bed" => Ok("bed".to_string()),
-        "sam" => Ok("sam".to_string()),
-        "bam" => Ok("bam".to_string()),
+        "fasta" | "fa" => Ok("fasta".to_string()),  // FASTA sequence files
+        "fastq" | "fq" => Ok("fastq".to_string()),  // FASTQ sequence files
+        "gff" | "gtf" => Ok("gff".to_string()),     // Gene annotation files
+        "bed" => Ok("bed".to_string()),             // Browser Extensible Data format
+        "sam" => Ok("sam".to_string()),             // Sequence Alignment/Map format
+        "bam" => Ok("bam".to_string()),             // Binary version of SAM
         _ => Err(format!("Unknown file extension: {:?}", ext).into()),
     }
 }
 
-/// Check the sequence type by a fast way: see if some special symbols exist in the sequence
+/// Determines the biological sequence type by analyzing its content
 ///
+/// Uses a heuristic approach to check if the sequence conforms to DNA, RNA, or protein alphabets.
+/// In case of ambiguity, prioritizes DNA > RNA > Protein classification.
+///
+/// # Arguments
+/// * `seq` - Byte slice containing the sequence to analyze
+///
+/// # Returns
+/// * `String` - The determined sequence type ("DNA", "RNA", "Protein", or "Unknown")
 pub fn try_seq_type_seq(seq: &[u8]) -> String {
     if seq.is_empty() {
         eprintln!("Empty sequence");
     }
 
+    // Track validity flags for each sequence type
     let (mut is_dna, mut is_rna, mut is_protein) = (true, true, true);
+    
     for &c in seq {
         let c_upper = c.to_ascii_uppercase();
         let mut valid_in_any = false;
 
-        // Check DNA validity
+        // Check DNA validity - valid chars are A, T, C, G, N
         if is_dna {
-            // Some files may contain 'N' as a placeholder for unknown bases
+            // N is commonly used as a placeholder for unknown nucleotides
             if matches!(c_upper, b'A' | b'T' | b'C' | b'G' | b'N') {
                 valid_in_any = true;
             } else {
@@ -89,7 +119,7 @@ pub fn try_seq_type_seq(seq: &[u8]) -> String {
             }
         }
 
-        // Check RNA validity
+        // Check RNA validity - valid chars are A, U, C, G
         if is_rna {
             if matches!(c_upper, b'A' | b'U' | b'C' | b'G') {
                 valid_in_any = true;
@@ -98,7 +128,7 @@ pub fn try_seq_type_seq(seq: &[u8]) -> String {
             }
         }
 
-        // Check Protein validity
+        // Check Protein validity - standard amino acid codes
         if is_protein {
             if matches!(
                 c_upper,
@@ -138,14 +168,16 @@ pub fn try_seq_type_seq(seq: &[u8]) -> String {
         if !valid_in_any {
             eprintln!("Invalid character: {}", c as char);
         }
-        // Early exit if only one type is valid
+        
+        // Optimization: Early exit if only one type remains valid
         if only_one_true(is_dna, is_rna, is_protein) {
             break;
         }
     }
 
-    // Determine result by priority
-    // if `is_dna && is_protein` equals to true, the sequence is seen as DNA.
+    // Determine result by priority: DNA > RNA > Protein
+    // If sequence could be multiple types (e.g., is_dna && is_protein),
+    // we classify as the highest priority type
     if is_dna {
         "DNA".into()
     } else if is_rna {
@@ -157,32 +189,55 @@ pub fn try_seq_type_seq(seq: &[u8]) -> String {
     }
 }
 
+/// Utility function that returns true only if exactly one of the three boolean parameters is true
+///
+/// # Arguments
+/// * `a`, `b`, `c` - Three boolean values to check
+///
+/// # Returns
+/// * `bool` - True if exactly one parameter is true, false otherwise
 fn only_one_true(a: bool, b: bool, c: bool) -> bool {
     (a as u8 + b as u8 + c as u8) == 1
 }
 
-/// Write `content` into file given by `path`
+/// Writes string content to a file at the specified path
 ///
+/// # Arguments
+/// * `path` - Path where the file should be written
+/// * `content` - String content to write to the file
 pub fn write_file<P: AsRef<Path>>(path: P, content: &str) {
     fs::write(path, content).expect("Unable to write file");
 }
 
-/// See what type(file or dir) does the path behalf.
+/// Determines if a path represents a directory
+///
+/// This function uses heuristics based on file extension to guess if the path
+/// is meant to be a directory rather than actually checking the filesystem.
+///
+/// # Arguments
+/// * `path` - PathBuf to analyze
+///
+/// # Returns
+/// * `bool` - True if the path likely represents a directory, false otherwise
 pub fn is_directory_path(path: &PathBuf) -> bool {
     path.extension().map_or(true, |ext| {
         ext.is_empty() || path.as_os_str().to_str().unwrap().ends_with('.')
     })
 }
 
-/// Creat empty file.
+/// Creates an empty file and ensures its parent directories exist
 ///
+/// # Arguments
+/// * `path` - Path where the file should be created
 pub fn create_file_with_dir(path: &Path) {
+    // First ensure parent directories exist
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).unwrap_or_else(|e| {
             e_exit("DIR", &format!("Unable to create directory: {}", e), 1);
         });
     }
 
+    // Then create the file
     File::create(path).unwrap_or_else(|e| {
         e_exit("FILE", &format!("Unable to create file: {}", e), 1);
     });

@@ -6,13 +6,13 @@ use seq_here::info::{self, InfoOutput};
 use seq_here::process::{self};
 use seq_here::utils;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(name = "seq-here", next_line_help = true)]
 #[command(author = "Zhixia Lau <zhixiaovo@gmail.com>")]
 #[command(
-    version = "0.0.4",
+    version = "0.0.5",
     about = "A fast tool for bio-sequence file processing",
     long_about
 )]
@@ -59,7 +59,7 @@ struct InfoFaArgs {
     #[command(flatten)]
     input: InputFile,
     #[arg(value_enum)]
-    #[arg(long, short = 'o', default_value = "println")] // default = "println"
+    #[arg(long, short = 'o', default_value = "println")]
     output_type: OutputType,
 }
 
@@ -68,7 +68,7 @@ struct InfoFqArgs {
     #[command(flatten)]
     input: InputFile,
 
-    #[arg(long, short = 'o', default_value = "println")] // default = "println"
+    #[arg(long, short = 'o', default_value = "println")]
     output_type: OutputType,
 }
 
@@ -77,10 +77,10 @@ struct InfoGffArgs {
     #[command(flatten)]
     input: InputFile,
 
-    #[arg(long, short = 't', default_value = "gff3")] // default = "gff3"
+    #[arg(long, short = 't', default_value = "gff3")]
     _type: Option<String>,
 
-    #[arg(long, short = 'o', default_value = "println")] // default = "println"
+    #[arg(long, short = 'o', default_value = "println")]
     output_type: OutputType,
 }
 
@@ -95,7 +95,7 @@ enum OutputType {
 ///
 #[derive(Subcommand)]
 enum ProcessCmd {
-    #[command(about = "Combine the given files into one file, support all-type text files.(TODO)")] //TODO: Combine
+    #[command(about = "Combine the given files into one file, support all-type text files.(TODO)")]
     Combine(ProcessCombineArgs),
 }
 
@@ -122,25 +122,33 @@ enum ExtractCmd {
 #[derive(Args)]
 struct ExtractSegmentArgs {
     #[command(flatten)]
-    input: InputFile,           // The files that store the sequence to be extracted
+    input: InputFile,
 
     #[command(flatten)]
-    id_options: InputOptions,   // Input ids by keyboard or file
+    id_options: InputOptions,
 
     #[command(flatten)]
-    output: OutputFile,         // Output file
+    output: OutputFile,
 }
 
 #[derive(Args)]
 struct ExtractExplainArgs {
-    #[command(flatten)]
-    input1: InputFile,          // Sequence files
+    #[arg(short = 's', long = "seq")]
+    #[arg(required = true)]
+    #[arg(help = "Input sequence files (FASTA), separated by ',' .")]
+    #[arg(value_name = "SEQ_FILES")]
+    #[arg(value_delimiter = ',')]
+    seq_files: Vec<PathBuf>,
+
+    #[arg(short = 'g', long = "gff")]
+    #[arg(required = true)]
+    #[arg(help = "Input annotation files (GFF/GTF), separated by ',' .")]
+    #[arg(value_name = "GFF_FILES")]
+    #[arg(value_delimiter = ',')]
+    gff_files: Vec<PathBuf>,
 
     #[command(flatten)]
-    input2: InputFile,          // GFF files
-
-    #[command(flatten)]
-    output: OutputFile,         // Output file
+    output: OutputFile,
 }
 
 /// I/O Options
@@ -148,7 +156,6 @@ struct ExtractExplainArgs {
 #[derive(Args)]
 #[group(required = true, multiple = false)]
 struct InputOptions {
-
     #[arg(short = 's', long)]
     #[arg(help = "Directly input text")]
     #[arg(value_name = "String")]
@@ -162,7 +169,6 @@ struct InputOptions {
 
 #[derive(Args)]
 struct InputFile {
-    // #[arg(short = 'f', long)]
     #[arg(required = true)]
     #[arg(help = "Input files or the directory containing the files, seperated by ',' .")]
     #[arg(value_name = "FILES")]
@@ -171,31 +177,8 @@ struct InputFile {
 }
 
 impl InputFile {
-    // if the input is a file, return the file path
-    // if the input is a directory, return all the files in the directory
     fn get_files(&self) -> Vec<PathBuf> {
-        let mut files = Vec::new();
-        for f in &self.files {
-            if !f.exists() {
-                e_exit("File", "File(s) does not exist.", 1);
-            }
-
-            let f = Path::new(f);
-            if f.is_dir() {
-                for e in f.read_dir().unwrap() {
-                    let e = e.unwrap();
-                    let path = e.path();
-                    if path.is_file() {
-                        files.push(path.to_path_buf());
-                    }
-                }
-            }
-            if f.is_file() {
-                files.push(f.to_path_buf());
-            }
-        }
-
-        files
+        expand_file_paths(&self.files)
     }
 }
 
@@ -209,40 +192,65 @@ struct OutputFile {
 }
 
 impl OutputFile {
-    // Check if path does exist.
-    // Return a file path.
     fn get_file(&self, default: &str) -> PathBuf {
         match &self.output {
             Some(path) => {
                 if let Ok(metadata) = fs::metadata(path) {
                     if metadata.is_file() {
-                        path.clone()
-                    } else {
-                        let new_path = path.join(default);
-                        // utils::create_file_with_dir(&new_path);
-                        new_path
+                        return path.clone();
                     }
+                    // 是目录，在目录中创建默认文件
+                    return path.join(default);
+                }
+                
+                // 路径不存在
+                if utils::is_directory_path(path) {
+                    path.join(default)
                 } else {
-                    if utils::is_directory_path(path) {
-                        let dir_path = path.join(default);
-                        // utils::create_file_with_dir(&dir_path);
-                        dir_path
-                    } else {
-                        // utils::create_file_with_dir(path);
-                        path.clone()
-                    }
+                    path.clone()
                 }
             }
-            None => {
-                let default_path = PathBuf::from("./").join(default);
-                // utils::create_file_with_dir(&default_path);
-                default_path
-            }
+            None => PathBuf::from("./").join(default),
         }
     }
-
 }
 
+// 通用函数：展开文件路径（处理目录和文件）
+fn expand_file_paths(paths: &[PathBuf]) -> Vec<PathBuf> {
+    let mut files = Vec::new();
+    for path in paths {
+        if !path.exists() {
+            e_exit("File", "File(s) does not exist.", 1);
+        }
+
+        if path.is_dir() {
+            match path.read_dir() {
+                Ok(entries) => {
+                    for entry in entries.filter_map(Result::ok) {
+                        let entry_path = entry.path();
+                        if entry_path.is_file() {
+                            files.push(entry_path);
+                        }
+                    }
+                }
+                Err(_) => e_exit("File", &format!("Cannot read directory: {:?}", path), 1),
+            }
+        } else if path.is_file() {
+            files.push(path.clone());
+        }
+    }
+    files
+}
+
+// 处理信息输出的通用函数
+fn handle_info_output<T: InfoOutput>(files: Vec<PathBuf>, output_type: OutputType, extra_args: Vec<String>) {
+    println!("{}: {:?}", "Inputs:".green().bold(), files);
+    match output_type {
+        OutputType::File => T::by_file(files, extra_args),
+        OutputType::Println => T::by_println(files, extra_args),
+        OutputType::Csv => T::by_csv(files, extra_args),
+    }
+}
 
 fn main() {
     let args = Cli::parse();
@@ -251,54 +259,21 @@ fn main() {
         Commands::Info(info_cmd) => match info_cmd {
             InfoCmd::Fa(args) => {
                 let files = args.input.get_files();
-                println!("{}: {:?}", "Inputs:".green().bold(), files);
-                match args.output_type {
-                    OutputType::File => {
-                        info::InfoFa::by_file(files, vec![]);
-                    }
-                    OutputType::Println => {
-                        info::InfoFa::by_println(files, vec![]);
-                    }
-                    OutputType::Csv => {
-                        info::InfoFa::by_csv(files, vec![]);
-                    }
-                }
+                handle_info_output::<info::InfoFa>(files, args.output_type, vec![]);
             }
 
             InfoCmd::Fq(args) => {
                 let files = args.input.get_files();
-                println!("{}: {:?}", "Inputs:".green().bold(), files);
-                match args.output_type {
-                    OutputType::File => {
-                        info::InfoFq::by_file(files, vec![]);
-                    }
-                    OutputType::Println => {
-                        info::InfoFq::by_println(files, vec![]);
-                    }
-                    OutputType::Csv => {
-                        info::InfoFq::by_csv(files, vec![]);
-                    }
-                }
+                handle_info_output::<info::InfoFq>(files, args.output_type, vec![]);
             }
 
             InfoCmd::Gff(args) => {
                 let files = args.input.get_files();
-                println!("{}: {:?}", "Inputs:".green().bold(), files);
-                match args.output_type {
-                    OutputType::File => {
-                        info::InfoGff::by_file(files, vec!["gff3".to_string()]);
-                    }
-                    OutputType::Println => {
-                        info::InfoGff::by_println(files, vec!["gff3".to_string()]);
-                    }
-                    OutputType::Csv => {
-                        info::InfoGff::by_csv(files, vec!["gff3".to_string()]);
-                    }
-                }
+                handle_info_output::<info::InfoGff>(files, args.output_type, vec!["gff3".to_string()]);
             }
         },
 
-        Commands::Process(process_cmd) => match process_cmd{
+        Commands::Process(process_cmd) => match process_cmd {
             ProcessCmd::Combine(args) => {
                 let files = args.input.get_files();
                 let out = args.output.get_file("./combined");
@@ -328,13 +303,14 @@ fn main() {
             },
 
             ExtractCmd::Explain(args) => {
-                let (seq_files, gff_files) = (args.input1.get_files(), args.input2.get_files());
+                let seq_files = expand_file_paths(&args.seq_files);
+                let gff_files = expand_file_paths(&args.gff_files);
                 let out = args.output.get_file("./anno_extracted_segment");
                 println!("{}: {:?}\n{}: {:?}",
                          "Input sequence files:".green().bold(), seq_files,
                          "Input annotation files".yellow().bold(), gff_files);
                 extract::ExtractExplain::extract(seq_files, gff_files, out);
             }
-        },
+        }                                                                         ,
     }
 }

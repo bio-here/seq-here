@@ -1,6 +1,6 @@
 # seq-here
 
-[![Version](https://img.shields.io/badge/version-0.0.4-yellow.svg)]()
+[![Version](https://img.shields.io/badge/version-0.0.5-yellow.svg)]()
 [![GitHub](https://img.shields.io/badge/github-bio--here%2Fseq--here-blue.svg)](https://github.com/bio-here/seq-here)
 [![Build Status](https://travis-ci.org/bio-here/seq-here.svg?branch=master)](https://travis-ci.org/bio-here/seq-here)
 [![Crates.io](https://img.shields.io/crates/v/seq-here.svg)](https://crates.io/crates/seq-here)
@@ -9,7 +9,7 @@
 
 A fast tool for bio-sequence file processing.
 
-**NOTICE** : This project is still under development. The current version is 0.0.4.
+**NOTICE** : This project is still under development. The current version is 0.0.5.
 The usage of this tool is **not** recommended for production yet.
 
 
@@ -39,7 +39,7 @@ by adding the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-seq-here = "0.0.4"
+seq-here = "0.0.5"
 ```
 
 
@@ -77,6 +77,7 @@ seq-here info fa your_dir
 ```shell
 # Combine files
 seq-here process combine files_folder
+seq-here porcess combine file1,file2,file3
 
 # -o, --output <OutputFile>
 #         Output file name, if value is a directory, it would use default file_name in the directory.
@@ -88,10 +89,13 @@ seq-here process combine files_folder -o ./output/all.txt
 - **Extract**: Extract specified sequence segment or file data.
 
 ```shell
+# Extract a sequence segment by id
+seq-here extract segment input.fasta --file sequence_id.txt
+seq-here extract segment input.fasta --str GhID00000001
+#TODO: --start  --end 
 
-seq-here extract segment
-
-seq-here extract 
+# Extract sequences by given annotation file.
+seq-here extract explain --seq input.fasta --gff input.anno.gff -o output_path.fasta
 ```
 
 
@@ -103,3 +107,4 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduc
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+

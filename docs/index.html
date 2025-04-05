@@ -116,7 +116,7 @@
 <body>
     <header class="header">
         <div class="container">
-            <h1 id="title-name">Seq-Here<span>version: 0.0.3</span></h1>
+            <h1 id="title-name">Seq-Here<span>version: 0.0.5</span></h1>
             <p class="lead">A fast toolkit for bioinformatics sequence processing, written by Rust.</p>
             <div style="margin-top: 2rem;color:yellow;font-size: 20px">
                 <p>WARNING: The project is under development, Use CAREFULLY.</p>
@@ -135,15 +135,15 @@
             <div class="card-grid">
                 <div class="card">
                     <h3>Lightning Fast</h3>
-                    <p>Based on rust programming language</p>
+                    <p>Based on rust programming language with parallel processing and memory-mapped files for high performance.</p>
                 </div>
                 <div class="card">
                     <h3>Versatile Formats</h3>
-                    <p>Support for FASTA, FASTQ, SAM/BAM and other common bioinformatics formats</p>
+                    <p>Support for FASTA, FASTQ, GFF/GTF and other common bioinformatics formats.</p>
                 </div>
                 <div class="card">
                     <h3>Basic stable functions</h3>
-                    <p>Support 3 functions now: info-fetch, file-process, sequence-extract.</p>
+                    <p>Support 3 functions now: info-fetch, file-process, sequence-extract with various output formats.</p>
                 </div>
             </div>
         </section>
@@ -154,9 +154,25 @@
                 <h3>Application</h3>
                 <p>Use our Command-line App:</p>
                 <pre><code>
+# Install from crates.io
+cargo install seq-here
 
+# Get basic information from sequence files
+seq-here info fa sample.fasta
+
+# Extract sequences with specific ID
+seq-here extract segment sample.fasta --str GhID000001 -o output.fasta
+
+# Extract sequences with IDs from a file
+seq-here extract segment sample.fasta --file ids.txt -o output.fasta
+
+# Extract annotated features
+seq-here extract explain --seq sample.fasta --gff annotation.gff -o output_dir
+
+# Combine multiple files
+seq-here process combine file1.fasta,file2.fasta -o combined.fasta
+seq-here process combine file_folder/
                 </code></pre>
-
             </div>
 
             <br>
@@ -165,8 +181,31 @@
             <h3>Lib Crate</h3>
             <p>Use our lib crate in your project:</p>
                 <pre><code>
-                </code></pre>
+# Add to your Cargo.toml
+[dependencies]
+seq-here = "0.0.5"
 
+# Example code in your Rust project:
+use seq_here::extract::ExtractSegment;
+use std::path::PathBuf;
+
+fn main() {
+    // Extract sequences with a specific ID
+    let input_files = vec![PathBuf::from("sample.fasta")];
+    let output_file = PathBuf::from("output.fasta");
+    
+    // Extract by ID
+    ExtractSegment::extract_id(input_files, "SEQUENCE_ID".to_string(), output_file);
+    
+    // Or process files containing annotation features
+    use seq_here::extract::ExtractExplain;
+    let seq_files = vec![PathBuf::from("sequences.fasta")];
+    let anno_files = vec![PathBuf::from("annotation.gff")];
+    let output_dir = PathBuf::from("output_directory");
+    
+    ExtractExplain::extract(seq_files, anno_files, output_dir);
+}
+                </code></pre>
         </div>
         </section>
 

@@ -11,18 +11,27 @@ use std::sync::{Arc, Mutex};
 use rayon::iter::IntoParallelRefIterator;
 use rayon::iter::ParallelIterator;
 
+/// Extract specific segments from biological sequence files
 pub struct ExtractSegment;
 
-
-// TODO: .expect("")  msg
-// TODO:
-
 impl ExtractSegment {
+    /// Extract sequences that match a single ID
+    /// 
+    /// # Arguments
+    /// * `paths` - Input sequence files (FASTA, FASTQ, GFF)
+    /// * `id` - Sequence identifier to extract
+    /// * `output` - Output file path
     pub fn extract_id(paths: Vec<PathBuf>, id: String, output: PathBuf) {
         let id_set = vec![Self::normalize_id(&id)].into_iter().collect();
         Self::process_files_parallel(paths, &id_set, &output)
     }
 
+    /// Extract sequences matching IDs from a file
+    /// 
+    /// # Arguments
+    /// * `paths` - Input sequence files (FASTA, FASTQ, GFF)
+    /// * `id_file` - File containing IDs to extract (one per line)
+    /// * `output` - Output file path
     pub fn extract_id_files(paths: Vec<PathBuf>, id_file: PathBuf, output: PathBuf) {
         let id_set = match Self::load_id_set(&id_file) {
             Ok(set) => set,
@@ -31,6 +40,7 @@ impl ExtractSegment {
         Self::process_files_parallel(paths, &id_set, &output)
     }
 
+    /// Process multiple files in parallel
     fn process_files_parallel(paths: Vec<PathBuf>, id_set: &HashSet<String>, output: &PathBuf) {
         let writer = match MultiFormatWriter::new(output) {
             Ok(w) => Arc::new(Mutex::new(w)),
@@ -48,6 +58,7 @@ impl ExtractSegment {
         });
     }
 
+    /// Process a single file with the appropriate processor function
     fn process_file<P>(
         path: &PathBuf,
         ids: &HashSet<String>,
@@ -61,9 +72,9 @@ impl ExtractSegment {
         });
 
         processor(path, ids, &mut writer);
-            // .unwrap_or_else(|e| { e_exit("PROCESS-ERROR", &format!("Process {} failed: {}", path.display(), e), 4) } );
     }
 
+    /// Load sequence IDs from a file into a HashSet
     fn load_id_set(path: &PathBuf) -> io::Result<HashSet<String>> {
         let file = File::open(path).map_err(|e| {
             e_println("FILE-ERROR", &format!("Open {} failed: {}", path.display(), e));
@@ -80,6 +91,10 @@ impl ExtractSegment {
         Ok(set)
     }
 
+    /// Normalize sequence identifiers for consistent matching
+    /// 
+    /// Takes the first part before any whitespace, pipe, or semicolon
+    /// and converts to lowercase for case-insensitive matching
     fn normalize_id(raw_id: &str) -> String {
         raw_id.split(|c: char| c.is_whitespace() || c == '|' || c == ';')
             .next()
@@ -87,57 +102,80 @@ impl ExtractSegment {
             .to_lowercase()
     }
 
+    /// Process FASTA format files to extract matching sequences
     fn process_fasta(path: &PathBuf, ids: &HashSet<String>, writer: &mut MultiFormatWriter) {
-        let reader = fasta::Reader::from_file(path).expect("");
+        let reader = fasta::Reader::from_file(path)
+            .expect(&format!("Failed to open FASTA file: {}", path.display()));
+            
         for record in reader.records() {
-            let record = record.expect("");
+            let record = record
+                .expect(&format!("Failed to parse FASTA record in {}", path.display()));
+                
             if ids.contains(&Self::normalize_id(record.id())) {
-                writer.fa.write_record(&record).expect("");
+                writer.fa.write_record(&record)
+                    .expect(&format!("Failed to write FASTA record: {}", record.id()));
             }
         }
     }
 
+    /// Process GFF format files to extract matching annotations
     fn process_gff(path: &PathBuf, ids: &HashSet<String>, writer: &mut MultiFormatWriter) {
-        let mut reader = gff::Reader::from_file(path, GffType::GFF3).expect("");    //TODO: GFF TYPE
+        let mut reader = gff::Reader::from_file(path, GffType::GFF3)
+            .expect(&format!("Failed to open GFF file: {}", path.display()));
+            
         for record in reader.records() {
-            let record = record.expect("");
+            let record = record
+                .expect(&format!("Failed to parse GFF record in {}", path.display()));
+                
             if let Some(id) = record.attributes().get("ID") {
                 if ids.contains(&Self::normalize_id(id)) {
-                    writer.gff.write(&record).expect("");
+                    writer.gff.write(&record)
+                        .expect(&format!("Failed to write GFF record: {}", id));
                 }
             }
         }
     }
 
+    /// Process FASTQ format files to extract matching sequences
     fn process_fastq(path: &PathBuf, ids: &HashSet<String>, writer: &mut MultiFormatWriter) {
-        let reader = fastq::Reader::from_file(path).expect("");
+        let reader = fastq::Reader::from_file(path)
+            .expect(&format!("Failed to open FASTQ file: {}", path.display()));
+            
         for record in reader.records() {
-            let record = record.expect("");
+            let record = record
+                .expect(&format!("Failed to parse FASTQ record in {}", path.display()));
+                
             if ids.contains(&Self::normalize_id(record.id())) {
-                writer.fq.write_record(&record).expect("");
+                writer.fq.write_record(&record)
+                    .expect(&format!("Failed to write FASTQ record: {}", record.id()));
             }
         }
     }
 }
 
-
-
+/// Extract and explain annotated sequence features
 pub struct ExtractExplain;
 
 impl ExtractExplain {
+    /// Extract annotated features from sequences
+    /// 
+    /// # Arguments
+    /// * `seq_files` - FASTA files containing sequences
+    /// * `anno_files` - GFF files containing annotations
+    /// * `output` - Output directory for extracted features
     pub fn extract(seq_files: Vec<PathBuf>, anno_files: Vec<PathBuf>, output: PathBuf) {
-        // 创建输出目录
+        // Create output directory
         fs::create_dir_all(&output).unwrap_or_else(|e| {
-            e_exit("FS", &format!("创建输出目录失败: {}", e), 1);
+            e_exit("FS", &format!("Failed to create output directory: {}", e), 1);
         });
 
-        // 并行处理每个序列文件
+        // Process each sequence file in parallel
         seq_files.par_iter().for_each(|seq_path| {
-            // 加载序列数据
+            // Load sequence data
             let seq_data = Self::load_sequences(seq_path)
                 .unwrap_or_else(|e| e_exit("SEQ-LOAD", &e, 2));
 
-            // 处理所有注释文件
+            // Process all annotation files
             let annotations: Vec<_> = anno_files.par_iter()
                 .flat_map(|anno_path| {
                     Self::load_annotations(anno_path)
@@ -145,58 +183,64 @@ impl ExtractExplain {
                 })
                 .collect();
 
-            // 生成注释结果
+            // Generate result file
             let output_path = output.join(seq_path.file_name().unwrap());
             Self::generate_annotated_file(&seq_data, &annotations, &output_path)
                 .unwrap_or_else(|e| e_exit("OUTPUT", &e, 4));
         });
     }
 
-    /// 加载序列数据到内存（适合中小型文件）
+    /// Load sequence data into memory (suitable for small to medium files)
+    /// 
+    /// Returns a map of sequence IDs to FASTA records
     fn load_sequences(path: &Path) -> Result<HashMap<String, fasta::Record>, String> {
         let reader = fasta::Reader::from_file(path)
-            .map_err(|e| format!("读取序列文件失败: {} - {}", path.display(), e))?;
+            .map_err(|e| format!("Failed to read sequence file: {} - {}", path.display(), e))?;
 
         let mut seq_map = HashMap::new();
         for record in reader.records() {
-            let record = record.map_err(|e| format!("解析FASTA失败: {}", e))?;
+            let record = record.map_err(|e| format!("Failed to parse FASTA: {}", e))?;
             seq_map.insert(record.id().to_string(), record);
         }
         Ok(seq_map)
     }
 
-    /// 加载GFF注释信息
+    /// Load GFF annotations
+    /// 
+    /// Returns a vector of GFF records
     fn load_annotations(path: &Path) -> Result<Vec<gff::Record>, String> {
         let mut reader = gff::Reader::from_file(path, GffType::GFF3)
-            .map_err(|e| format!("读取注释文件失败: {} - {}", path.display(), e))?;
+            .map_err(|e| format!("Failed to read annotation file: {} - {}", path.display(), e))?;
 
         reader.records()
-            .map(|r| r.map_err(|e| format!("解析GFF失败: {}", e)))
+            .map(|r| r.map_err(|e| format!("Failed to parse GFF: {}", e)))
             .collect()
     }
 
-    /// 生成带注释的序列文件
+    /// Generate annotated sequence files
+    /// 
+    /// Extracts sequence segments based on annotations and writes to output file
     fn generate_annotated_file(
         seq_data: &HashMap<String, fasta::Record>,
         annotations: &[gff::Record],
         output: &Path
     ) -> Result<(), String> {
         let mut writer = fasta::Writer::new(File::create(output)
-            .map_err(|e| format!("创建输出文件失败: {} - {}", output.display(), e))?);
+            .map_err(|e| format!("Failed to create output file: {} - {}", output.display(), e))?);
 
-        // 为每个注释生成特征序列
+        // Generate feature sequences for each annotation
         for ann in annotations {
             let seq_id = ann.seqname();
             let Some(seq) = seq_data.get(seq_id) else {
-                e_println("ANN-SKIP", &format!("未找到序列: {}", seq_id));
+                e_println("ANN-SKIP", &format!("Sequence not found: {}", seq_id));
                 continue;
             };
 
-            // 提取注释区间序列
+            // Extract sequence for the annotated region
             let feature_seq = Self::extract_feature(seq, ann)
-                .map_err(|e| format!("提取特征失败: {}", e))?;
+                .map_err(|e| format!("Failed to extract feature: {}", e))?;
 
-            // 生成描述信息
+            // Generate description
             let description = format!("{}:{}-{} {}",
                                       ann.feature_type(),
                                       ann.start(),
@@ -204,29 +248,32 @@ impl ExtractExplain {
                                       ann.attributes().get("ID").unwrap_or(&"unknown".to_string())
             );
 
-            // 写入新记录
+            // Write new record
             let new_record = fasta::Record::with_attrs(
                 ann.attributes().get("ID").unwrap_or(&ann.seqname().to_string()),
                 Some(&description),
                 &feature_seq
             );
             writer.write_record(&new_record)
-                .map_err(|e| format!("写入失败: {}", e))?;
+                .map_err(|e| format!("Write failed: {}", e))?;
         }
         Ok(())
     }
 
-    /// 从序列中提取特征区间
+    /// Extract sequence segment for a feature
+    /// 
+    /// Extracts the subsequence corresponding to the annotation coordinates
     fn extract_feature(seq: &fasta::Record, ann: &gff::Record) -> Result<Vec<u8>, String> {
-        let start = ann.start().saturating_sub(1); // GFF是1-based
-        let &end = ann.end();
+        // Convert from 1-based GFF coordinates to 0-based index
+        let start = ann.start().saturating_sub(1).to_owned();
+        let end = ann.end().to_owned();
 
+        // Validate coordinates
         if start >= seq.seq().len() as u64 || end > seq.seq().len() as u64 {
-            return Err(format!("无效区间: {}-{} (序列长度: {})",
+            return Err(format!("Invalid range: {}-{} (sequence length: {})",
                                ann.start(), ann.end(), seq.seq().len()));
         }
 
         Ok(seq.seq()[start as usize..end as usize].to_vec())
     }
 }
-
