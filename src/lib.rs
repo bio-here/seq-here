@@ -12,7 +12,7 @@
 //!
 //! Use the crate in your project by adding the following to your `Cargo.toml`:
 //! ```toml
-//! seq-here = "0.0.4"
+//! seq-here = "0.0.5"
 //! ```
 //!
 //! There are 3 modules in this crate for different purposes:
