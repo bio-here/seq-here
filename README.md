@@ -1,17 +1,17 @@
-# seq-here
+![seq-here](.github/avatar.png)
 
-[![Version](https://img.shields.io/badge/version-0.0.5-yellow.svg)]()
+---
+
+[![Version](https://img.shields.io/badge/version-0.1.0-yellow.svg)]()
 [![GitHub](https://img.shields.io/badge/github-bio--here%2Fseq--here-blue.svg)](https://github.com/bio-here/seq-here)
 [![Build Status](https://travis-ci.org/bio-here/seq-here.svg?branch=master)](https://travis-ci.org/bio-here/seq-here)
 [![Crates.io](https://img.shields.io/crates/v/seq-here.svg)](https://crates.io/crates/seq-here)
 [![Documentation](https://docs.rs/seq-here/badge.svg)](https://docs.rs/seq-here)
 [![License](https://img.shields.io/crates/l/MIT.svg)]()
 
-A fast tool for bio-sequence file processing.
+## Introduction
 
-**NOTICE** : This project is still under development. The current version is 0.0.5.
-The usage of this tool is **not** recommended for production yet.
-
+Seq-here is a fast tool for bio-sequence file processing.
 
 ## Installation
 
@@ -39,7 +39,7 @@ by adding the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-seq-here = "0.0.5"
+seq-here = "0.1.0"
 ```
 
 
@@ -92,10 +92,16 @@ seq-here process combine files_folder -o ./output/all.txt
 # Extract a sequence segment by id
 seq-here extract segment input.fasta --file sequence_id.txt
 seq-here extract segment input.fasta --str GhID00000001
-#TODO: --start  --end 
 
-# Extract sequences by given annotation file.
+# Extract a specific portion of a sequence by position (0-based coordinates)
+seq-here extract segment input.fasta --str GhID00000001 --start 100 --end 200
+seq-here extract segment input.fasta --file ids.txt --start 50 --end 150
+
+# Extract sequences by given annotation file
 seq-here extract explain --seq input.fasta --gff input.anno.gff -o output_path.fasta
+
+# Extract only specific feature types from annotations
+seq-here extract explain --seq input.fasta --gff input.anno.gff --type CDS,gene,mRNA -o output_path
 ```
 
 

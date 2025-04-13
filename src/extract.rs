@@ -21,9 +21,11 @@ impl ExtractSegment {
     /// * `paths` - Input sequence files (FASTA, FASTQ, GFF)
     /// * `id` - Sequence identifier to extract
     /// * `output` - Output file path
-    pub fn extract_id(paths: Vec<PathBuf>, id: String, output: PathBuf) {
+    /// * `start` - Optional start position (0-based) for the extracted segment
+    /// * `end` - Optional end position (0-based, exclusive) for the extracted segment
+    pub fn extract_id(paths: Vec<PathBuf>, id: String, output: PathBuf, start: Option<usize>, end: Option<usize>) {
         let id_set = vec![Self::normalize_id(&id)].into_iter().collect();
-        Self::process_files_parallel(paths, &id_set, &output)
+        Self::process_files_parallel(paths, &id_set, &output, start, end)
     }
 
     /// Extract sequences matching IDs from a file
@@ -32,16 +34,18 @@ impl ExtractSegment {
     /// * `paths` - Input sequence files (FASTA, FASTQ, GFF)
     /// * `id_file` - File containing IDs to extract (one per line)
     /// * `output` - Output file path
-    pub fn extract_id_files(paths: Vec<PathBuf>, id_file: PathBuf, output: PathBuf) {
+    /// * `start` - Optional start position (0-based) for the extracted segment
+    /// * `end` - Optional end position (0-based, exclusive) for the extracted segment
+    pub fn extract_id_files(paths: Vec<PathBuf>, id_file: PathBuf, output: PathBuf, start: Option<usize>, end: Option<usize>) {
         let id_set = match Self::load_id_set(&id_file) {
             Ok(set) => set,
             Err(e) => e_exit("ID-LOAD", &format!("Failed to load IDs: {}", e), 1),
         };
-        Self::process_files_parallel(paths, &id_set, &output)
+        Self::process_files_parallel(paths, &id_set, &output, start, end)
     }
 
     /// Process multiple files in parallel
-    fn process_files_parallel(paths: Vec<PathBuf>, id_set: &HashSet<String>, output: &PathBuf) {
+    fn process_files_parallel(paths: Vec<PathBuf>, id_set: &HashSet<String>, output: &PathBuf, start: Option<usize>, end: Option<usize>) {
         let writer = match MultiFormatWriter::new(output) {
             Ok(w) => Arc::new(Mutex::new(w)),
             Err(e) => e_exit("WRITER", &format!("Output init failed: {}", e), 2),
@@ -50,9 +54,9 @@ impl ExtractSegment {
         paths.par_iter().for_each(|path| {
             let writer = Arc::clone(&writer);
             match FileType::infer_file_type(path) {
-                FileType::Fasta => Self::process_file(path, id_set, writer, Self::process_fasta),
-                FileType::Gff => Self::process_file(path, id_set, writer, Self::process_gff),
-                FileType::Fastq => Self::process_file(path, id_set, writer, Self::process_fastq),
+                FileType::Fasta => Self::process_file(path, id_set, writer, |p, ids, w| Self::process_fasta(p, ids, w, start, end)),
+                FileType::Gff => Self::process_file(path, id_set, writer, |p, ids, w| Self::process_gff(p, ids, w)),
+                FileType::Fastq => Self::process_file(path, id_set, writer, |p, ids, w| Self::process_fastq(p, ids, w)),
                 FileType::Unknown => e_println("TYPE-ERROR", &format!("Unsupported format: {:?}", path)),
             };
         });
@@ -103,7 +107,7 @@ impl ExtractSegment {
     }
 
     /// Process FASTA format files to extract matching sequences
-    fn process_fasta(path: &PathBuf, ids: &HashSet<String>, writer: &mut MultiFormatWriter) {
+    fn process_fasta(path: &PathBuf, ids: &HashSet<String>, writer: &mut MultiFormatWriter, start: Option<usize>, end: Option<usize>) {
         let reader = fasta::Reader::from_file(path)
             .expect(&format!("Failed to open FASTA file: {}", path.display()));
             
@@ -112,8 +116,45 @@ impl ExtractSegment {
                 .expect(&format!("Failed to parse FASTA record in {}", path.display()));
                 
             if ids.contains(&Self::normalize_id(record.id())) {
-                writer.fa.write_record(&record)
-                    .expect(&format!("Failed to write FASTA record: {}", record.id()));
+                // Apply start and end positions if specified
+                if start.is_some() || end.is_some() {
+                    let start_pos = start.unwrap_or(0);
+                    let end_pos = end.unwrap_or(record.seq().len());
+                    
+                    // Validate positions
+                    if start_pos >= record.seq().len() {
+                        e_println("RANGE-ERROR", &format!("Start position {} out of range for sequence {} (length {})", 
+                            start_pos, record.id(), record.seq().len()));
+                        continue;
+                    }
+                    
+                    if end_pos > record.seq().len() {
+                        e_println("RANGE-ERROR", &format!("End position {} out of range for sequence {} (length {})", 
+                            end_pos, record.id(), record.seq().len()));
+                        continue;
+                    }
+                    
+                    if start_pos >= end_pos {
+                        e_println("RANGE-ERROR", &format!("Invalid range: start ({}) must be less than end ({})", 
+                            start_pos, end_pos));
+                        continue;
+                    }
+                    
+                    // Create a new record with the extracted segment
+                    let segment_seq = record.seq()[start_pos..end_pos].to_vec();
+                    let description = match record.desc() {
+                        Some(desc) => Some(format!("{} segment:{}..{}", desc, start_pos, end_pos)),
+                        None => Some(format!("segment:{}..{}", start_pos, end_pos)),
+                    };
+                    let segment_record = fasta::Record::with_attrs(record.id(), description.as_deref(), &segment_seq);
+                    
+                    writer.fa.write_record(&segment_record)
+                        .expect(&format!("Failed to write FASTA record segment: {}", record.id()));
+                } else {
+                    // Write the complete record if no positions specified
+                    writer.fa.write_record(&record)
+                        .expect(&format!("Failed to write FASTA record: {}", record.id()));
+                }
             }
         }
     }
@@ -163,7 +204,8 @@ impl ExtractExplain {
     /// * `seq_files` - FASTA files containing sequences
     /// * `anno_files` - GFF files containing annotations
     /// * `output` - Output directory for extracted features
-    pub fn extract(seq_files: Vec<PathBuf>, anno_files: Vec<PathBuf>, output: PathBuf) {
+    /// * `feature_types` - Optional set of feature types to extract (e.g., "CDS", "gene")
+    pub fn extract(seq_files: Vec<PathBuf>, anno_files: Vec<PathBuf>, output: PathBuf, feature_types: Option<Vec<String>>) {
         // Create output directory
         fs::create_dir_all(&output).unwrap_or_else(|e| {
             e_exit("FS", &format!("Failed to create output directory: {}", e), 1);
@@ -178,8 +220,17 @@ impl ExtractExplain {
             // Process all annotation files
             let annotations: Vec<_> = anno_files.par_iter()
                 .flat_map(|anno_path| {
-                    Self::load_annotations(anno_path)
-                        .unwrap_or_else(|e| e_exit("ANN-LOAD", &e, 3))
+                    let anns = Self::load_annotations(anno_path)
+                        .unwrap_or_else(|e| e_exit("ANN-LOAD", &e, 3));
+                    
+                    // Filter annotations by feature type if specified
+                    if let Some(types) = &feature_types {
+                        anns.into_iter()
+                            .filter(|ann| types.iter().any(|t| t.eq_ignore_ascii_case(ann.feature_type())))
+                            .collect::<Vec<_>>()
+                    } else {
+                        anns
+                    }
                 })
                 .collect();
 

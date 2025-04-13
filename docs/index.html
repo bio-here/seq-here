@@ -1,14 +1,18 @@
 <!DOCTYPE html>
-<html lang="zh-CN" xmlns="http://www.w3.org/1999/html">
+<html lang="en" xmlns="http://www.w3.org/1999/html">
 <head>
     <meta charset="UTF-8">
-    <title>Seq-Here: bio-sequence process</title>
+    <title>Seq-Here: Bio-sequence Processing</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Add highlight.js CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
     <style>
         :root {
             --primary: #2c3e50;
             --secondary: #29B6F6;
             --accent: #e74c3c;
+            --code-bg: #f5f5f5;
+            --code-border: #ddd;
         }
 
         * {
@@ -69,6 +73,11 @@
             padding-bottom: 0.5rem;
         }
 
+        h3 {
+            margin: 1rem 0 0.5rem;
+            color: var(--primary);
+        }
+
         a {
             color: var(--secondary);
             text-decoration: none;
@@ -102,6 +111,42 @@
             box-shadow: 0 3px 6px rgba(0,0,0,0.15);
         }
 
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--code-border);
+            border-radius: 4px;
+            padding: 1rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+            line-height: 1.4;
+        }
+
+        code {
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 0.9rem;
+        }
+        
+        /* Additional styles for highlighted code blocks */
+        pre code {
+            padding: 0;
+            background: transparent;
+            border: none;
+        }
+        
+        .hljs {
+            padding: 0;
+            background: transparent;
+        }
+
+        .code-comment {
+            color: #6a737d;
+            font-style: italic;
+        }
+
+        .feature-section {
+            margin-bottom: 2rem;
+        }
+
         @media (max-width: 768px) {
             .container {
                 padding: 0 1rem;
@@ -116,11 +161,8 @@
 <body>
     <header class="header">
         <div class="container">
-            <h1 id="title-name">Seq-Here<span>version: 0.0.5</span></h1>
+            <h1 id="title-name">Seq-Here<span>version: 0.1.0</span></h1>
             <p class="lead">A fast toolkit for bioinformatics sequence processing, written by Rust.</p>
-            <div style="margin-top: 2rem;color:yellow;font-size: 20px">
-                <p>WARNING: The project is under development, Use CAREFULLY.</p>
-            </div>
             <div style="margin-top: 2rem;">
                 <a href="#getting-started" class="button">Get Started</a>
                 <a href="https://github.com/bio-here/seq-here" class="button" target="_blank">View on GitHub</a>
@@ -142,8 +184,8 @@
                     <p>Support for FASTA, FASTQ, GFF/GTF and other common bioinformatics formats.</p>
                 </div>
                 <div class="card">
-                    <h3>Basic stable functions</h3>
-                    <p>Support 3 functions now: info-fetch, file-process, sequence-extract with various output formats.</p>
+                    <h3>Powerful Extraction</h3>
+                    <p>Extract sequences or segments based on IDs, specific positions, or annotation features with precise control over what you need.</p>
                 </div>
             </div>
         </section>
@@ -151,62 +193,114 @@
         <section id="h-getting-started">
             <h2 id="getting-started">Getting Started</h2>
             <div class="card">
-                <h3>Application</h3>
-                <p>Use our Command-line App:</p>
-                <pre><code>
-# Install from crates.io
+                <h3>Command-line Application</h3>
+                <p>Use our Command-line App for quick sequence processing:</p>
+                <pre><code class="language-bash"># Install from crates.io
 cargo install seq-here
 
 # Get basic information from sequence files
-seq-here info fa sample.fasta
-
-# Extract sequences with specific ID
+seq-here info fa sample.fasta</code></pre>
+                
+                <div class="feature-section">
+                    <h3>Extract Sequences by ID</h3>
+                    <pre><code class="language-bash"># Extract sequences with specific ID
 seq-here extract segment sample.fasta --str GhID000001 -o output.fasta
 
 # Extract sequences with IDs from a file
 seq-here extract segment sample.fasta --file ids.txt -o output.fasta
 
-# Extract annotated features
+# Extract specific region from sequence (positions 100-200)
+seq-here extract segment sample.fasta --str GhID000001 --start 100 --end 200</code></pre>
+                </div>
+                
+                <div class="feature-section">
+                    <h3>Extract Annotated Features</h3>
+                    <pre><code class="language-bash"># Extract all annotated features
 seq-here extract explain --seq sample.fasta --gff annotation.gff -o output_dir
 
-# Combine multiple files
+# Extract only specific feature types
+seq-here extract explain --seq sample.fasta --gff annotation.gff --type CDS,gene -o output_dir</code></pre>
+                </div>
+                
+                <div class="feature-section">
+                    <h3>Process Files</h3>
+                    <pre><code class="language-bash"># Combine multiple files
 seq-here process combine file1.fasta,file2.fasta -o combined.fasta
-seq-here process combine file_folder/
-                </code></pre>
+seq-here process combine file_folder/</code></pre>
+                </div>
             </div>
 
             <br>
 
             <div class="card">
-            <h3>Lib Crate</h3>
-            <p>Use our lib crate in your project:</p>
-                <pre><code>
-# Add to your Cargo.toml
+            <h3>Library Crate</h3>
+            <p>Use our lib crate in your Rust project:</p>
+                
+                <!-- Dependency Configuration -->
+                <div class="feature-section">
+                    <h3>1. Add Dependency</h3>
+                    <pre><code class="language-toml"># Cargo.toml
 [dependencies]
-seq-here = "0.0.5"
-
-# Example code in your Rust project:
+seq-here = "0.0.6"</code></pre>
+                </div>
+                
+                <!-- Sequence Extraction -->
+                <div class="feature-section">
+                    <h3>2. Extract Sequences by ID</h3>
+                    <pre><code class="language-rust">// Import required modules
 use seq_here::extract::ExtractSegment;
 use std::path::PathBuf;
 
-fn main() {
-    // Extract sequences with a specific ID
+fn extract_sequences() {
     let input_files = vec![PathBuf::from("sample.fasta")];
     let output_file = PathBuf::from("output.fasta");
     
-    // Extract by ID
-    ExtractSegment::extract_id(input_files, "SEQUENCE_ID".to_string(), output_file);
+    // Extract complete sequence
+    ExtractSegment::extract_id(
+        input_files.clone(),
+        "SEQUENCE_ID".to_string(),
+        output_file.clone(),
+        None,  // start position (optional)
+        None   // end position (optional)
+    );
     
-    // Or process files containing annotation features
-    use seq_here::extract::ExtractExplain;
-    let seq_files = vec![PathBuf::from("sequences.fasta")];
+    // Extract specific segment (positions 10-50)
+    ExtractSegment::extract_id(
+        input_files,
+        "SEQUENCE_ID".to_string(),
+        output_file,
+        Some(10),  // start position
+        Some(50)   // end position
+    );
+}</code></pre>
+                </div>
+                
+                <!-- Annotation Processing -->
+                <div class="feature-section">
+                    <h3>3. Extract Features from Annotation Files</h3>
+                    <pre><code class="language-rust">// Import annotation processing module
+use seq_here::extract::ExtractExplain;
+use std::path::PathBuf;
+
+fn extract_annotations() {
+    // Prepare input files
+    let seq_files = vec![PathBuf::from("genome.fasta")];
     let anno_files = vec![PathBuf::from("annotation.gff")];
     let output_dir = PathBuf::from("output_directory");
     
-    ExtractExplain::extract(seq_files, anno_files, output_dir);
-}
-                </code></pre>
-        </div>
+    // Filter for specific feature types (e.g., CDS, gene)
+    let feature_types = Some(vec!["CDS".to_string(), "gene".to_string()]);
+    
+    // Execute extraction
+    ExtractExplain::extract(
+        seq_files,
+        anno_files,
+        output_dir,
+        feature_types  // Use None to extract all features
+    );
+}</code></pre>
+                </div>
+            </div>
         </section>
 
         <section id="h-contact-us">
@@ -221,5 +315,23 @@ fn main() {
             <p>Found an issue? <a href="https://github.com/bio-here/seq-here/issues">Report it on GitHub</a></p>
         </div>
     </footer>
+    
+    <!-- Add highlight.js JavaScript -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <!-- Add Rust language support -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/rust.min.js"></script>
+    <!-- Add Shell/Bash language support -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/bash.min.js"></script>
+    <!-- Add TOML language support -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/toml.min.js"></script>
+    
+    <script>
+        // Initialize highlight.js
+        document.addEventListener('DOMContentLoaded', (event) => {
+            document.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+        });
+    </script>
 </body>
 </html>

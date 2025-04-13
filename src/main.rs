@@ -12,7 +12,7 @@ use std::path::PathBuf;
 #[command(name = "seq-here", next_line_help = true)]
 #[command(author = "Zhixia Lau <zhixiaovo@gmail.com>")]
 #[command(
-    version = "0.0.5",
+    version = "0.1.0",
     about = "A fast tool for bio-sequence file processing",
     long_about
 )]
@@ -127,6 +127,14 @@ struct ExtractSegmentArgs {
     #[command(flatten)]
     id_options: InputOptions,
 
+    #[arg(short, long)]
+    #[arg(help = "Optional start position (0-based) for the extracted segment")]
+    start: Option<usize>,
+
+    #[arg(short, long)]
+    #[arg(help = "Optional end position (0-based, exclusive) for the extracted segment")]
+    end: Option<usize>,
+
     #[command(flatten)]
     output: OutputFile,
 }
@@ -146,6 +154,12 @@ struct ExtractExplainArgs {
     #[arg(value_name = "GFF_FILES")]
     #[arg(value_delimiter = ',')]
     gff_files: Vec<PathBuf>,
+
+    #[arg(short = 't', long = "type")]
+    #[arg(help = "Feature types to extract (e.g., 'CDS,gene,mRNA'), separated by ',' .")]
+    #[arg(value_name = "FEATURE_TYPES")]
+    #[arg(value_delimiter = ',')]
+    feature_types: Option<Vec<String>>,
 
     #[command(flatten)]
     output: OutputFile,
@@ -288,15 +302,23 @@ fn main() {
                 let seq_files = args.input.get_files();
                 let out = args.output.get_file("./id_extracted_segment");
                 println!("{}: {:?}", "Input files:".green().bold(), seq_files);
+                
+                // Display position range if specified
+                if args.start.is_some() || args.end.is_some() {
+                    println!("{}: {}..{}",
+                             "Position range:".yellow().bold(), 
+                             args.start.map_or("start".to_string(), |s| s.to_string()),
+                             args.end.map_or("end".to_string(), |e| e.to_string()));
+                }
 
                 match (args.id_options.file, args.id_options.str) {
                     (None, Some(id)) => {
                         println!("{}: {:?}", "Input ID:".yellow().bold(), id);
-                        extract::ExtractSegment::extract_id(seq_files, id, out);
+                        extract::ExtractSegment::extract_id(seq_files, id, out, args.start, args.end);
                     },
                     (Some(path), None) => {
                         println!("{}: {:?}", "Input path:".yellow().bold(), path);
-                        extract::ExtractSegment::extract_id_files(seq_files, path, out);
+                        extract::ExtractSegment::extract_id_files(seq_files, path, out, args.start, args.end);
                     },
                     _ => {}
                 };
@@ -306,11 +328,17 @@ fn main() {
                 let seq_files = expand_file_paths(&args.seq_files);
                 let gff_files = expand_file_paths(&args.gff_files);
                 let out = args.output.get_file("./anno_extracted_segment");
+                
                 println!("{}: {:?}\n{}: {:?}",
                          "Input sequence files:".green().bold(), seq_files,
-                         "Input annotation files".yellow().bold(), gff_files);
-                extract::ExtractExplain::extract(seq_files, gff_files, out);
+                         "Input annotation files:".yellow().bold(), gff_files);
+                
+                if let Some(types) = &args.feature_types {
+                    println!("{}: {:?}", "Feature types filter:".yellow().bold(), types);
+                }
+                
+                extract::ExtractExplain::extract(seq_files, gff_files, out, args.feature_types.clone());
             }
-        }                                                                         ,
+        }
     }
 }
